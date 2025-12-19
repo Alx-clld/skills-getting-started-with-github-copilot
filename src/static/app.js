@@ -20,14 +20,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const spotsLeft = details.max_participants - details.participants.length;
 
-        // Générer la liste des participants
+        // Générer la liste des participants avec icône de suppression
         let participantsHTML = "";
         if (details.participants.length > 0) {
           participantsHTML = `
             <div class="participants-section">
               <strong>Participants&nbsp;:</strong>
-              <ul class="participants-list">
-                ${details.participants.map(p => `<li>${p}</li>`).join("")}
+              <ul class="participants-list no-bullets">
+                ${details.participants.map(p => `
+                  <li>
+                    <span class="participant-name">${p}</span>
+                    <span class="delete-participant" title="Désinscrire" data-activity="${name}" data-participant="${p}">🗑️</span>
+                  </li>
+                `).join("")}
               </ul>
             </div>
           `;
@@ -55,6 +60,36 @@ document.addEventListener("DOMContentLoaded", () => {
         option.value = name;
         option.textContent = name;
         activitySelect.appendChild(option);
+      });
+
+      // Ajouter gestionnaire pour suppression participant
+      document.querySelectorAll('.delete-participant').forEach(icon => {
+        icon.addEventListener('click', async (e) => {
+          const activity = e.target.getAttribute('data-activity');
+          const participant = e.target.getAttribute('data-participant');
+          if (confirm(`Désinscrire ${participant} de ${activity} ?`)) {
+            try {
+              const response = await fetch(`/activities/${encodeURIComponent(activity)}/unregister?email=${encodeURIComponent(participant)}`, {
+                method: 'POST',
+              });
+              const result = await response.json();
+              if (response.ok) {
+                fetchActivities();
+                messageDiv.textContent = result.message || 'Participant désinscrit.';
+                messageDiv.className = 'success';
+              } else {
+                messageDiv.textContent = result.detail || 'Erreur lors de la désinscription';
+                messageDiv.className = 'error';
+              }
+              messageDiv.classList.remove('hidden');
+              setTimeout(() => messageDiv.classList.add('hidden'), 5000);
+            } catch (error) {
+              messageDiv.textContent = 'Erreur réseau lors de la désinscription.';
+              messageDiv.className = 'error';
+              messageDiv.classList.remove('hidden');
+            }
+          }
+        });
       });
     } catch (error) {
       activitiesList.innerHTML = "<p>Failed to load activities. Please try again later.</p>";
